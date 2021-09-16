@@ -172,6 +172,14 @@ class Attention(nn.Module):
 
         if attention_mask is not None:
             # Apply the attention mask
+            # URGENT
+            # if attention_mask.size(1) != w.size(1):
+            #     bsz, _, _, tempseqlen = attention_mask.shape
+            #     _, _, _, tgtseqlen = w.shape
+            #     temp_ones = torch.zeros(bsz, 1, 1, tgtseqlen-tempseqlen).to(attention_mask.device)
+            #     # print(attention_mask)
+            #     attention_mask = torch.cat([temp_ones, attention_mask], dim=-1)
+            #     # print('sad')
             w = w + attention_mask
 
         w = nn.Softmax(dim=-1)(w)
@@ -225,6 +233,8 @@ class Attention(nn.Module):
         value = self.split_heads(value)
         if layer_past is not None:
             past_key, past_value = layer_past[0].transpose(-2, -1), layer_past[1]  # transpose back cf below
+            # print(past_key.shape, key.shape)
+            # print(past_value.shape, value.shape)
             key = torch.cat((past_key, key), dim=-1)
             value = torch.cat((past_value, value), dim=-2)
 
@@ -391,7 +401,11 @@ class GPT2DoubleHeadsModelOutput(ModelOutput):
 
 GPT2_START_DOCSTRING = r"""
 
-    This model is a PyTorch `torch.nn.Module <https://pytorch.org/docs/stable/nn.html#torch.nn.Module>`_ sub-class.
+    This model inherits from :class:`~transformers.PreTrainedModel`. Check the superclass documentation for the generic
+    methods the library implements for all its model (such as downloading or saving, resizing the input embeddings,
+    pruning heads etc.)
+
+    This model is also a PyTorch `torch.nn.Module <https://pytorch.org/docs/stable/nn.html#torch.nn.Module>`__ subclass.
     Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general
     usage and behavior.
 
@@ -411,27 +425,31 @@ GPT2_INPUTS_DOCSTRING = r"""
             If ``past_key_values`` is used, only ``input_ids`` that do not have their past calculated should be passed
             as ``input_ids``.
 
-            Indices can be obtained using :class:`transformers.GPT2Tokenizer`.
-            See :func:`transformers.PreTrainedTokenizer.encode` and
-            :func:`transformers.PreTrainedTokenizer.__call__` for details.
+            Indices can be obtained using :class:`~transformers.GPT2Tokenizer`.
+            See :meth:`transformers.PreTrainedTokenizer.encode` and
+            :meth:`transformers.PreTrainedTokenizer.__call__` for details.
 
             `What are input IDs? <../glossary.html#input-ids>`__
-
         past_key_values (:obj:`List[torch.FloatTensor]` of length :obj:`config.n_layers`):
-            Contains pre-computed hidden-states (key and values in the attention blocks) as computed by the model
+            Contains precomputed hidden-states (key and values in the attention blocks) as computed by the model
             (see ``past_key_values`` output below). Can be used to speed up sequential decoding.
-            The ``input_ids`` which have their past given to this model should not be passed as ``input_ids`` as they have already been computed.
+            The ``input_ids`` which have their past given to this model should not be passed as ``input_ids`` as they
+            have already been computed.
         attention_mask (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`):
             Mask to avoid performing attention on padding token indices.
             Mask values selected in ``[0, 1]``:
-            ``1`` for tokens that are NOT MASKED, ``0`` for MASKED tokens.
+
+            - 1 for tokens that are **not masked**,
+            - 0 for tokens that are **maked**.
 
             `What are attention masks? <../glossary.html#attention-mask>`__
         token_type_ids (:obj:`torch.LongTensor` of shape :obj:`(batch_size, input_ids_length)`, `optional`):
-            `input_ids_length` = `sequence_length if `past` is None else 1
             Segment token indices to indicate first and second portions of the inputs.
-            Indices are selected in ``[0, 1]``: ``0`` corresponds to a `sentence A` token, ``1``
-            corresponds to a `sentence B` token
+            Indices are selected in ``[0, 1]``:
+
+            - 0 corresponds to a `sentence A` token,
+            - 1 corresponds to a `sentence B` token.
+
             `What are token type IDs? <../glossary.html#token-type-ids>`_
         position_ids (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`):
             Indices of positions of each input sequence tokens in the position embeddings.
@@ -441,20 +459,28 @@ GPT2_INPUTS_DOCSTRING = r"""
         head_mask (:obj:`torch.FloatTensor` of shape :obj:`(num_heads,)` or :obj:`(num_layers, num_heads)`, `optional`):
             Mask to nullify selected heads of the self-attention modules.
             Mask values selected in ``[0, 1]``:
-            :obj:`1` indicates the head is **not masked**, :obj:`0` indicates the head is **masked**.
+
+            - 1 indicates the head is **not masked**,
+            - 0 indicates the head is **masked**.
+
         inputs_embeds (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, sequence_length, hidden_size)`, `optional`):
-            This is useful if you want more control over how to convert `input_ids` indices into associated vectors
-            than the model's internal embedding lookup matrix.
-            If ``past_key_values`` is used, optionally only the last `inputs_embeds` have to be input (see ``past_key_values``).
-        use_cache (:obj:`bool`):
-            If `use_cache` is True, ``past_key_values`` key value states are returned and can be used to speed up decoding (see ``past_key_values``). Defaults to `True`.
+            Optionally, instead of passing :obj:`input_ids` you can choose to directly pass an embedded representation.
+            This is useful if you want more control over how to convert :obj:`input_ids` indices into associated
+            vectors than the model's internal embedding lookup matrix.
+
+            If ``past_key_values`` is used, optionally only the last :obj:`inputs_embeds` have to be input (see
+            ``past_key_values``).
+        use_cache (:obj:`bool`, `optional`):
+            If set to :obj:`True`, ``past_key_values`` key value states are returned and can be used to speed up
+            decoding (see ``past_key_values``).
         output_attentions (:obj:`bool`, `optional`):
-            If set to ``True``, the attentions tensors of all attention layers are returned. See ``attentions`` under returned tensors for more detail.
+            Whether or not to return the attentions tensors of all attention layers. See ``attentions`` under returned
+            tensors for more detail.
         output_hidden_states (:obj:`bool`, `optional`):
-            If set to ``True``, the hidden states of all layers are returned. See ``hidden_states`` under returned tensors for more detail.
+            Whether or not to return the hidden states of all layers. See ``hidden_states`` under returned tensors for
+            more detail.
         return_dict (:obj:`bool`, `optional`):
-            If set to ``True``, the model will return a :class:`~transformers.file_utils.ModelOutput` instead of a
-            plain tuple.
+            Whether or not to return a :class:`~transformers.file_utils.ModelOutput` instead of a plain tuple.
 """
 
 
@@ -657,21 +683,156 @@ class GPT2LMHeadModel(GPT2PreTrainedModel):
         self.transformer = GPT2Model(config)
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
 
+        # self.emb_trans = nn.Sequential(nn.Linear(1024, config.n_layer * config.n_embd),
+        #                                nn.Tanh(),
+        #                                nn.Linear(config.n_layer * config.n_embd, config.n_layer * 2 * config.n_embd))
+
+        self.match_n_layer = config.n_layer
+        self.match_n_head = config.n_head
+        self.match_n_embd = config.n_embd//config.n_head
+
+        # TODO: better argument initialization.
+        self.MEAN_METHOD = True
+
+
+        # TODAYFIX
+        # if hasattr(config, '_my_arg_task_mode'):
+        #     self.task_mode = config._my_arg_task_mode
+        #
+        # if hasattr(config, '_my_arg_tune_mode'):
+        #     if config._my_arg_tune_mode == 'finetune':
+        #         self.finetune_mode = True
+        #     elif config._my_arg_tune_mode == 'prefixtune':
+        #         self.finetune_mode = False
+        #     elif config._my_arg_tune_mode == 'finetune-top':
+        #         self.finetune_mode = True
+        #     else:
+        #         assert False, "incorrect tune mode"
+
+        #TODAYFIX
+        assert hasattr(config, '_my_arg_task_mode')
+        assert hasattr(config, '_my_arg_tune_mode')
+        if not hasattr(config, '_objective_mode'):
+            config._objective_mode = 0
+        self.task_mode = config._my_arg_task_mode
+        if config._my_arg_tune_mode == 'finetune':
+            self.finetune_mode = True
+        elif config._my_arg_tune_mode == 'prefixtune' or config._my_arg_tune_mode == 'bothtune':
+            self.finetune_mode = False
+        elif config._my_arg_tune_mode == 'finetune-top':
+            self.finetune_mode = True
+        else:
+            assert False, "incorrect tune mode"
+
+        self.prefix_control = False
+        self.emb_match = False
+
+        self._objective_mode = config._objective_mode
+        assert self._objective_mode in [0, 1, 2, 3, 4]
+        # 0 means the regular token level objective, which is sum / output_len
+        # 1 means the sentence level objective, which is sum
+        # 2 means our buggy version which is sum/max_batch(input_len +output_len)
+        # 3 means our buggy version which is sum/max_batch(output_len)
+        # 4 means our buggy version which is sum/(input_len +output_len)
+
+        # TODAYFIX.
+        # if hasattr(config, '_my_arg_task_mode') and config._my_arg_task_mode == 'embMatch':
+        #     print('embMatch mode is on.')
+        #     if self.finetune_mode:
+        #         assert False, 'should not happen'
+        #     self.emb_match = True
+        #     self.prefix_control = False
+        #     if self.MEAN_METHOD:
+        #         self.emb_trans = nn.Sequential(nn.Linear(1024, config.n_layer * 2 * config.n_embd), nn.Tanh())
+        #     else:
+        #         self.numlayer = 5
+        #         self.emb_trans = nn.Sequential(nn.Linear(1024*self.numlayer, config.n_layer * 2 * config.n_embd), nn.Tanh())
+        #
+        # elif hasattr(config, '_my_arg_control') and config._my_arg_control:
+        #     print('control mode is on.')
+        #     if self.finetune_mode:
+        #         assert False, 'should not happen'
+        #     self.prefix_control = True
+        #     self.emb_match = False
+        #     self.preseqlen = 5
+        #     self.control_trans = nn.Sequential(nn.Linear(config.n_embd, self.preseqlen * config.n_layer * 2 * config.n_embd), nn.Tanh())
+        # else:
+        #     self.prefix_control = False
+        #     self.emb_match = False
+
+
+
         self.init_weights()
 
     def get_output_embeddings(self):
         return self.lm_head
 
+    # def prepare_inputs_for_generation2(self, input_ids, **kwargs):
+    #     """
+    #     Implement in subclasses of :class:`~transfomers.PreTrainedModel` for custom behavior to prepare inputs in the
+    #     generate method.
+    #     """
+    #     # print(kwargs)
+    #     return {"input_ids": input_ids, 'emb_match':kwargs['emb_match'],
+    #             'control_code':kwargs['control_code'], 'past_key_values':kwargs['past_key_values']}
+
+
     def prepare_inputs_for_generation(self, input_ids, past=None, **kwargs):
+        # return {"input_ids": input_ids, 'emb_match': kwargs['emb_match'],
+        #         'control_code': kwargs['control_code'], 'past_key_values': kwargs['past_key_values']}
+
         # only last token for inputs_ids if past is defined in kwargs
         if past:
             input_ids = input_ids[:, -1].unsqueeze(-1)
 
-        return {
-            "input_ids": input_ids,
-            "past_key_values": past,
-            "use_cache": kwargs.get("use_cache"),
-        }
+        # ##########  for batch generation ####################
+        # print(kwargs.keys())
+        use_prefix_test = kwargs.get("use_prefix_test", False)
+
+        if use_prefix_test:
+            attention_mask = kwargs.get("attention_mask", None)
+            position_ids = kwargs.get("position_ids", None)
+
+            if attention_mask is not None and position_ids is None:
+                # create postion_ids on the fly for batch generation
+                # print(attention_mask)
+                position_ids = attention_mask.long().cumsum(-1) - 1
+                # print(position_ids)
+                position_ids.masked_fill_(attention_mask == 0, 1)
+                # take the equivalent length as the input ids.
+                input_len = input_ids.shape[-1]
+                position_ids = position_ids[:, -input_len:]
+                if past:
+                    position_ids = position_ids[:, -1].unsqueeze(-1)
+            else:
+                position_ids = None
+        # print(position_ids, attention_mask.shape)
+        ##############################
+        if past is None:
+            # print('only at the beginnning. ')
+            if 'past_key_values' in kwargs:
+                past = kwargs['past_key_values']
+            else:
+                past = None
+
+        if use_prefix_test:
+            # print('using the batch gen')
+            return {
+                "input_ids": input_ids,
+                "past_key_values": past,
+                "use_cache": kwargs.get("use_cache"),
+                #############for batch gen########
+                "position_ids": position_ids,
+                "attention_mask": attention_mask,
+                #####################
+            }
+        else:
+            # print('No batch gen')
+            return {
+                "input_ids": input_ids,
+                "past_key_values": past,
+                "use_cache": kwargs.get("use_cache"),
+            }
 
     @add_start_docstrings_to_callable(GPT2_INPUTS_DOCSTRING)
     @add_code_sample_docstrings(
@@ -681,6 +842,232 @@ class GPT2LMHeadModel(GPT2PreTrainedModel):
         config_class=_CONFIG_FOR_DOC,
     )
     def forward(
+        self,
+        input_ids=None,
+        weights=None,
+        control_code=None,
+        emb_match=None,
+        past_key_values=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        encoder_hidden_states=None,
+        encoder_attention_mask=None,
+        labels=None,
+        use_cache=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+        src_attn=None,
+        tgt_attn=None,
+        src=None,
+        **kwargs,
+    ):
+        r"""
+        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`):
+            Labels for language modeling.
+            Note that the labels **are shifted** inside the model, i.e. you can set ``labels = input_ids``
+            Indices are selected in ``[-100, 0, ..., config.vocab_size]``
+            All labels set to ``-100`` are ignored (masked), the loss is only
+            computed for labels in ``[0, ..., config.vocab_size]``
+        """
+
+        # print(use_cache, end = ' ')
+        # if past_key_values is not None:
+        #     print(past_key_values[0].shape, input_ids)
+        # else:
+        #     print(past_key_values, input_ids)
+
+
+        if "past" in kwargs:
+            warnings.warn(
+                "The `past` argument is deprecated and will be removed in a future version, use `past_key_values` instead.",
+                FutureWarning,
+            )
+            past_key_values = kwargs.pop("past")
+
+        if self.emb_match and emb_match is None:
+            emb_match = control_code
+
+        assert kwargs == {}, f"Unexpected keyword arguments: {list(kwargs.keys())}."
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        # print(past_key_values is not None )
+        # assert  control_code is None
+        if self.prefix_control and control_code is not None:
+            assert False, 'control code should be None. moved the code. '
+            temp_control = self.transformer.wte(control_code)
+            temp_control = temp_control.sum(1).unsqueeze(1)
+            past_key_values = self.control_trans(temp_control)
+            # print(past_key_values.shape) #bsz, controlCodeLen, long... 5 * config.n_layer * 2 * config.n_embd
+            past_key_values = past_key_values.sum(1).unsqueeze(1)
+            # print(past_key_values.shape)  # bsz, 1, long...
+            bsz, seq_pastlen, _ = past_key_values.shape
+            past_key_values = past_key_values.view(bsz, seq_pastlen*self.preseqlen, self.match_n_layer * 2, self.match_n_head,
+                                                   self.match_n_embd)
+            past_key_values = past_key_values.permute([2, 0, 3, 1, 4]).split(2)
+            # past_key_values = None
+            # print(past_key_values[0].shape, len(past_key_values))
+        if self.emb_match and emb_match is not None:
+            assert False, 'emb should be none, moved the code. '
+            # print(self.config_class)
+            # print(self.config_class.n_layer, self./config_class.n_head, self.config_class.n_embd)
+            # print('line 752', emb_match.shape) #bsz, num_layer, 1024.
+            if not self.MEAN_METHOD:
+                bsz, numlayer, emb_dim = emb_match.shape
+                emb_match = emb_match.view(bsz, 1, numlayer*emb_dim)
+                past_key_values = self.emb_trans(emb_match)
+                # print(past_key_values.shape) # bsz, 1, long...
+                bsz, seq_pastlen, _ = past_key_values.shape
+            else:
+                past_key_values = self.emb_trans(emb_match)
+                # print(past_key_values.shape) #bsz, numlayer, long...
+                past_key_values = past_key_values.mean(1).unsqueeze(1)
+                # print(past_key_values.shape)  # bsz, 1, long...
+                bsz, seq_pastlen, _ = past_key_values.shape
+            # past_key_values = past_key_values.view(bsz, seq_pastlen, self.match_n_layer, 2, self.match_n_head, self.match_n_embd)
+            # past_key_values = past_key_values.permute([2, 3, 0, 4, 1, 5]).split(2)
+
+            past_key_values = past_key_values.view(bsz, seq_pastlen, self.match_n_layer*2, self.match_n_head, self.match_n_embd)
+            past_key_values = past_key_values.permute([2, 0, 3, 1, 4]).split(2)
+
+            # print(past_key_values[0].shape, len(past_key_values))
+
+
+        transformer_outputs = self.transformer(
+            input_ids,
+            past_key_values=past_key_values,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            encoder_hidden_states=encoder_hidden_states,
+            encoder_attention_mask=encoder_attention_mask,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+        hidden_states = transformer_outputs[0]
+
+        lm_logits = self.lm_head(hidden_states)
+
+        loss = None
+        split_loss = None
+        if labels is not None and weights is not None:
+            # Shift so that tokens < n predict n
+            shift_logits = lm_logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+            # Flatten the tokens
+            loss_fct = CrossEntropyLoss(reduction='none')
+            # print(weights)
+            bsz, seqlen, vocab_size = shift_logits.shape
+            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+            # print(loss.shape)
+            # print(loss.view(bsz, seqlen)[0], loss.view(bsz, seqlen)[1])
+            loss = loss.view(bsz, seqlen).mean(dim=-1)
+            # print(loss.shape)
+            weighted_loss = loss * weights
+            loss = weighted_loss.sum()
+        elif labels is not None and not self.finetune_mode:
+            # Shift so that tokens < n predict n
+            shift_logits = lm_logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+
+            # URGENT NEW:
+            # loss_fct = CrossEntropyLoss()
+            # bsz, seqlen, vocab_size = shift_logits.shape
+            # loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+            # print('line gpt2, reduction=mean', loss)
+
+
+            # # URGENT OLD
+            # # Flatten the tokens
+
+
+            # 0 means the regular token level objective, which is sum / output_len
+            # 1 means the sentence level objective, which is sum
+            # 2 means our buggy version which is sum/max_batch(input_len +output_len)
+            # 3 means our buggy version which is sum/max_batch(output_len)
+            # 4 means our buggy version which is sum/(input_len +output_len)
+
+            if self._objective_mode == 0:
+                # print('0 is the objective...')
+                # Flatten the tokens
+                loss_fct = CrossEntropyLoss()
+                loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+                # loss_fct = CrossEntropyLoss(reduction='none')
+                # bsz, seqlen, vocab_size = shift_logits.shape
+                # loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+                # seqlen_dim = (shift_labels != -100).sum(dim=-1)
+                # loss = loss.view(bsz, seqlen).sum(dim=-1) / seqlen_dim
+            elif self._objective_mode == 1:
+                # print('1 is the objective...')
+                loss_fct = CrossEntropyLoss(reduction='none')
+                bsz, seqlen, vocab_size = shift_logits.shape
+                loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+                loss = loss.view(bsz, seqlen).sum(dim=-1)
+            elif self._objective_mode == 2:
+                # print('2 is the objective...')
+                loss_fct = CrossEntropyLoss(reduction='none')
+                bsz, seqlen, vocab_size = shift_logits.shape
+                loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+                loss = loss.view(bsz, seqlen).mean(dim=-1)
+            elif self._objective_mode == 3:
+                # print('3 is the objective...')
+                loss_fct = CrossEntropyLoss(reduction='none')
+                bsz, seqlen, vocab_size = shift_logits.shape
+                loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+                seqlen_dim = max((shift_labels != -100).sum(dim=-1))
+                loss = loss.view(bsz, seqlen).sum(dim=-1) / seqlen_dim
+            elif self._objective_mode == 4:
+                # print('4 is the objective...')
+                loss_fct = CrossEntropyLoss(reduction='none')
+                bsz, seqlen, vocab_size = shift_logits.shape
+                loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+                seqlen_dim = (input_ids != 50256).sum(dim=-1)
+                loss = loss.view(bsz, seqlen).sum(dim=-1) / seqlen_dim
+                # assert False, "not implemented error, self._objective_mode == 4 "
+
+
+
+            # OLD
+            # loss_fct = CrossEntropyLoss(reduction='none')
+            # bsz, seqlen, vocab_size = shift_logits.shape
+            # loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+            # loss = loss.view(bsz, seqlen).mean(dim=-1)
+
+        elif labels is not None:
+            # Shift so that tokens < n predict n
+            shift_logits = lm_logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+            # Flatten the tokens
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+
+        if not return_dict:
+            output = (lm_logits,) + transformer_outputs[1:]
+            return ((loss,) + output) if loss is not None else output
+
+        return CausalLMOutputWithPast(
+            loss=loss,
+            logits=lm_logits,
+            past_key_values=transformer_outputs.past_key_values,
+            hidden_states=transformer_outputs.hidden_states,
+            attentions=transformer_outputs.attentions,
+        )
+
+    @add_start_docstrings_to_callable(GPT2_INPUTS_DOCSTRING)
+    @add_code_sample_docstrings(
+        tokenizer_class=_TOKENIZER_FOR_DOC,
+        checkpoint="gpt2",
+        output_type=CausalLMOutputWithPast,
+        config_class=_CONFIG_FOR_DOC,
+    )
+    def forward_weighted(
         self,
         input_ids=None,
         past_key_values=None,
@@ -809,25 +1196,25 @@ class GPT2DoubleHeadsModel(GPT2PreTrainedModel):
         **kwargs,
     ):
         r"""
-            mc_token_ids (:obj:`torch.LongTensor` of shape :obj:`(batch_size, num_choices)`, `optional`, default to index of the last token of the input)
-                Index of the classification token in each input sequence.
-                Selected in the range ``[0, input_ids.size(-1) - 1[``.
-            labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`)
-                Labels for language modeling.
-                Note that the labels **are shifted** inside the model, i.e. you can set ``labels = input_ids``
-                Indices are selected in ``[-1, 0, ..., config.vocab_size]``
-                All labels set to ``-100`` are ignored (masked), the loss is only
-                computed for labels in ``[0, ..., config.vocab_size]``
-            mc_labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size)`, `optional`)
-                Labels for computing the multiple choice classification loss.
-                Indices should be in ``[0, ..., num_choices]`` where `num_choices` is the size of the second dimension
-                of the input tensors. (see `input_ids` above)
-            kwargs (:obj:`Dict[str, any]`, optional, defaults to `{}`):
-                Used to hide legacy arguments that have been deprecated.
+        mc_token_ids (:obj:`torch.LongTensor` of shape :obj:`(batch_size, num_choices)`, `optional`, default to index of the last token of the input)
+            Index of the classification token in each input sequence.
+            Selected in the range ``[0, input_ids.size(-1) - 1[``.
+        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`)
+            Labels for language modeling.
+            Note that the labels **are shifted** inside the model, i.e. you can set ``labels = input_ids``
+            Indices are selected in ``[-1, 0, ..., config.vocab_size]``
+            All labels set to ``-100`` are ignored (masked), the loss is only
+            computed for labels in ``[0, ..., config.vocab_size]``
+        mc_labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size)`, `optional`)
+            Labels for computing the multiple choice classification loss.
+            Indices should be in ``[0, ..., num_choices]`` where `num_choices` is the size of the second dimension
+            of the input tensors. (see `input_ids` above)
+        kwargs (:obj:`Dict[str, any]`, optional, defaults to `{}`):
+            Used to hide legacy arguments that have been deprecated.
 
         Return:
 
-        Examples::
+        Example::
 
             >>> import torch
             >>> from transformers import GPT2Tokenizer, GPT2DoubleHeadsModel
